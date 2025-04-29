@@ -432,6 +432,8 @@ typedef af_pin<PORTB, 6, GPIO_AF_USART1> pin_58;
 class Pc1w : public uart_pc1w_t<UART1, DMA1_CH0, DMA2_CH7, pin_58>
 {
 public:
+    Pc1w(const Pc1w&) = delete;
+    Pc1w& operator=(const Pc1w&) = delete;
     Pc1w() = default;
     ~Pc1w() = default;
 };

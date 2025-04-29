@@ -3,13 +3,13 @@
 	<EmBitzVersion release="1.11" revision="0" />
 	<FileVersion major="1" minor="0" />
 	<Project>
-		<Option title="AKWD_MAIN_1" />
+		<Option title="AKWD_OLD" />
 		<Option make_tool="C:\ninja-win\ninja.exe" />
 		<Option pch_mode="2" />
 		<Option compiler="armgcc_eb" />
 		<Build>
 			<Target title="Debug">
-				<Option output="bin\Debug\AKWD_MAIN_1.elf" />
+				<Option output="bin\Debug\AKWD_OLD.elf" />
 				<Option object_output="obj\Debug\" />
 				<Option type="0" />
 				<Option compiler="armgcc_eb" />
@@ -37,7 +37,7 @@
 				</Linker>
 			</Target>
 			<Target title="Release">
-				<Option output="bin\Release\AKWD_MAIN_2.elf" />
+				<Option output="bin\Release\AKWD_OLD.elf" />
 				<Option object_output="obj\Release\" />
 				<Option type="0" />
 				<Option create_hex="1" />
@@ -67,7 +67,7 @@
 				</ExtraCommands>
 			</Target>
 			<Target title="Boot Release">
-				<Option output="bin\Boot_Release\AKWD_MAIN_1.elf" />
+				<Option output="bin\Boot_Release\AKWD_OLD.elf" />
 				<Option object_output="obj\Boot_Release\" />
 				<Option type="0" />
 				<Option create_hex="1" />
