@@ -1,0 +1,6 @@
+/bin
+/obj
+*.out
+*.depend
+*.elay
+*.cscope_file_list
