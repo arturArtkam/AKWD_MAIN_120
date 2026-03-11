@@ -50,7 +50,7 @@ public:
 
     void read_data(void* buf, size_t buf_len, OS::TMutex& mutex)
     {
-        static uint8_t query[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
+        uint8_t query[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
         uint16_t crc = crc16_split(&query[0], 1, 0xffff);
         query[1] = crc & 0xFF;
         query[2] = crc >> 8;
@@ -60,7 +60,7 @@ public:
         _uart_ptr->set_rx_pointer(static_cast<uint8_t* >(buf), buf_len);
         _uart_ptr->send_via_dma(query, 3, false);
 
-        if (!wait_exchange_end(180))
+        if (!wait_exchange_end(200))
         {
             _uart_ptr->disable_reciever();
             Leds::blink_red_n_times(3);

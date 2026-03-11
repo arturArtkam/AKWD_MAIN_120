@@ -117,41 +117,81 @@ public:
 
         data_->SYNC_RECIEVER = sync_rx_data;
 
-        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_0;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_1;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_6;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_7;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_4;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_5;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_2;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_3;
+        // -- Старая версия распайки датчиков --
 
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d0, _short_sens.gain_0);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d1, _short_sens.gain_1);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d6, _short_sens.gain_2);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d7, _short_sens.gain_3);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d4, _short_sens.gain_4);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d5, _short_sens.gain_5);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d2, _short_sens.gain_6);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d3, _short_sens.gain_7);
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_0; // (8) -> {1} -> 1 (датчик) -> {канал АЦП} -> канал ФКД
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_1; // (7) -> {2} -> 2
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_6; // (5) -> {7} -> 3
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_7; // (6) -> {8} -> 4
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_4; // (3) -> {5} -> 5
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_5; // (4) -> {6} -> 6
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_2; // (2) -> {3} -> 7
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_3; // (1) -> {4} -> 8
+//
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d0, _short_sens.gain_0);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d1, _short_sens.gain_1);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d6, _short_sens.gain_2);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d7, _short_sens.gain_3);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d4, _short_sens.gain_4);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d5, _short_sens.gain_5);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d2, _short_sens.gain_6);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d3, _short_sens.gain_7);
+//
+//        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_0;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_1;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_6;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_7;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_4;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_5;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_2;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_3;
+//
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d0, _long_sens.gain_0);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d1, _long_sens.gain_1);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d6, _long_sens.gain_2);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d7, _long_sens.gain_3);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d4, _long_sens.gain_4);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d5, _long_sens.gain_5);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d2, _long_sens.gain_6);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d3, _long_sens.gain_7);
 
-        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_0;
-        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_1;
-        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_6;
-        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_7;
-        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_4;
-        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_5;
-        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_2;
-        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_3;
+        // -- Новая версия распайки датчиков 03.2026 --
 
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d0, _long_sens.gain_0);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d1, _long_sens.gain_1);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d6, _long_sens.gain_2);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d7, _long_sens.gain_3);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d4, _long_sens.gain_4);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d5, _long_sens.gain_5);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d2, _long_sens.gain_6);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d3, _long_sens.gain_7);
+        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_3;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_2;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_4;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_5;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_6;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_7;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_1;
+        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_0;
+
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d3, _short_sens.gain_0);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d2, _short_sens.gain_1);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d4, _short_sens.gain_2);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d5, _short_sens.gain_3);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d6, _short_sens.gain_4);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d7, _short_sens.gain_5);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d1, _short_sens.gain_6);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d0, _short_sens.gain_7);
+
+        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_3;
+        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_2;
+        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_4;
+        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_5;
+        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_6;
+        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_7;
+        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_1;
+        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_0;
+
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d3, _long_sens.gain_0);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d2, _long_sens.gain_1);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d4, _long_sens.gain_2);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d5, _long_sens.gain_3);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d6, _long_sens.gain_4);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d7, _long_sens.gain_5);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d1, _long_sens.gain_6);
+        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d0, _long_sens.gain_7);
     }
 
     void adjust_gain_and_copy(int16_t (&buf_dst)[FKD_LEN], int16_t (&buf_src)[FKD_LEN], float ch_gain)
@@ -370,7 +410,7 @@ OS_PROCESS void Proc2::exec()
             sync_rx_data.sync_flag ^= 1;
             sync_rx_data.sync_timer = 2090000 + rand() % 10000;
             adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
-//            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
+            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
         }
         OS::sleep(2000);
 #endif
