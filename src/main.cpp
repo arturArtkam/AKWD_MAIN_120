@@ -365,12 +365,12 @@ OS_PROCESS void Proc2::exec()
         if (akwd::pwr.check_flag())
         {
             sync_start(&sb1w);
-            OS::sleep(10);
+            OS::sleep(5);
     //        sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
             sync_rx_data.sync_flag ^= 1;
             sync_rx_data.sync_timer = 2090000 + rand() % 10000;
             adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
-            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
+//            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
         }
         OS::sleep(2000);
 #endif
