@@ -251,9 +251,6 @@ void check_stack_freespaces()
 
 int main()
 {
-    Atomic<int32_t> owner_thread_id; // Атомарный идентификатор потока
-    owner_thread_id.store(2345);
-
     disable_interrupts();
 
     backup_domain_ini();
