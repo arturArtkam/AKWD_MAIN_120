@@ -68,6 +68,28 @@ public:
 
         mutex.unlock();
     }
+
+    bool send_data(void* buf, uint8_t buf_len, OS::TMutex& mutex)
+    {
+        mutex.lock();
+        _uart_ptr->send_via_dma(static_cast<const uint8_t*>(buf), buf_len, false);
+
+        volatile bool result = false;
+
+        // Метод send_data не предполагает отправку данных более 255 байт,
+        // поэтому 10 мс ожидания окончания передачи вполне достаточно для всех случаев
+        if (_uart_ptr->event.wait(10))
+        {
+            result = _uart_ptr->event.check_source(Uart_event_id::TX_EVENT);
+        }
+        else
+        {
+            result = false;
+        }
+
+        mutex.unlock();
+        return result;
+    }
 };
 
 class Sync_rx_board : public Boards_link

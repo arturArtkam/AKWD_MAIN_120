@@ -12,6 +12,7 @@ sAssertInfo g_assert_info;
 static sens_array_t s_short;
 static sens_array_t s_long;
 static sync_rx_t sync_rx_data;
+static uint8_t s_tx_data[128];
 static OS::TMutex s_mutex;
 
 /**
@@ -381,6 +382,15 @@ OS_PROCESS void Proc2::exec()
             sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
             adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
             adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
+            // Программирование коэффициентов усиления платы ближнего пояса, в плату дальнего пояса
+            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_GET_DATA);
+            s_tx_data[0] = head;
+            memcpy(&s_short.gain, &s_tx_data[1], sizeof(s_short.gain));
+            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
+            s_tx_data[sizeof(head) + sizeof(s_short.gain)] = crc & 0xFF;
+            s_tx_data[sizeof(head) + sizeof(s_short.gain) + 1] = crc >> 8;
+            adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex);
+
 
 //            OS::sleep(10);
 //            while (workdata.mtx.is_locked());
