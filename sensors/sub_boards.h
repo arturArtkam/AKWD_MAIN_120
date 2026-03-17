@@ -48,7 +48,7 @@ public:
         _addr = addr;
     }
 
-    void read_data(void* buf, size_t buf_len, OS::TMutex& mutex)
+    bool read_data(void* buf, size_t buf_len, OS::TMutex& mutex)
     {
         uint8_t query[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
         uint16_t crc = crc16_split(&query[0], 1, 0xffff);
@@ -60,19 +60,30 @@ public:
         _uart_ptr->set_rx_pointer(static_cast<uint8_t* >(buf), buf_len);
         _uart_ptr->send_via_dma(query, 3, false);
 
+//        if (!wait_exchange_end(200))
+//        {
+//            _uart_ptr->disable_reciever();
+////            Leds::blink_red_n_times(3);
+//            uint8_t err = 3; // Например, ошибка №3
+//            akwd::error_chan.push(err);
+//        }
+//
+//        mutex.unlock();
+        bool result = true;
         if (!wait_exchange_end(200))
         {
             _uart_ptr->disable_reciever();
-            Leds::blink_red_n_times(3);
+            result = false;
         }
 
         mutex.unlock();
+        return result;
     }
 
     bool send_data(void* buf, uint8_t buf_len, OS::TMutex& mutex)
     {
         mutex.lock();
-        _uart_ptr->send_via_dma(static_cast<const uint8_t*>(buf), buf_len, false);
+        _uart_ptr->send_via_dma(static_cast<const uint8_t*>(buf), buf_len, true);
 
         volatile bool result = false;
 

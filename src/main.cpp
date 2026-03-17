@@ -221,6 +221,7 @@ __BKP_MEM int32_t bkp_erase_timeout;
 namespace akwd
 {
 
+OS::channel<uint8_t, 8> error_chan;
 Leds leds;
 Power_key pwr_key;
 //Pwr_man pwr({connect_to_pwrmanager(akwd::sensors), &pwr_key, &sb1w, &ext_trigger});
@@ -382,13 +383,14 @@ OS_PROCESS void Proc2::exec()
             sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
             adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
             adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
-            // Программирование коэффициентов усиления платы ближнего пояса, в плату дальнего пояса
-            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_GET_DATA);
+            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
+            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
             s_tx_data[0] = head;
             memcpy(&s_short.gain, &s_tx_data[1], sizeof(s_short.gain));
             uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
-            s_tx_data[sizeof(head) + sizeof(s_short.gain)] = crc & 0xFF;
-            s_tx_data[sizeof(head) + sizeof(s_short.gain) + 1] = crc >> 8;
+            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
+            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
+            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
             adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex);
 
 
@@ -416,11 +418,35 @@ OS_PROCESS void Proc2::exec()
         {
             sync_start(&sb1w);
             OS::sleep(5);
-    //        sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
+            // sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
             sync_rx_data.sync_flag ^= 1;
             sync_rx_data.sync_timer = 2090000 + rand() % 10000;
-            adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
-            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
+            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
+            {
+                uint8_t err = 3; // Ошибка №3
+                akwd::error_chan.push(err);
+            }
+
+            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
+            {
+                uint8_t err = 3; // Ошибка №3
+                akwd::error_chan.push(err);
+            }
+
+            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
+            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
+            s_tx_data[0] = head;
+            memcpy(&s_short.gain, &s_tx_data[1], sizeof(s_short.gain));
+            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
+            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
+            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
+            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
+
+            if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex))
+            {
+                uint8_t err = 4; // Ошибка №4
+                akwd::error_chan.push(err);
+            }
         }
         OS::sleep(2000);
 #endif
@@ -461,10 +487,35 @@ OS_PROCESS void Proc5::exec()
 template <>
 OS_PROCESS void Proc6::exec()
 {
+//    for (;;)
+//    {
+//        check_stack_freespaces();
+//        sleep(50u);
+//    }
+    uint8_t err_code;
     for (;;)
     {
+        // Процесс ЗАМРЕТ (не будет выполняться) на этой строке,
+        // пока кто-нибудь не вызовет error_chan.push()
+        akwd::error_chan.pop(err_code);
+
+        // Как только данные появились - выполняем индикацию
+        if (err_code > 0)
+        {
+            for (uint8_t i = 0; i < err_code; ++i)
+            {
+                Leds::red_on();
+                sleep(10u);
+                Leds::red_off();
+                sleep(200u);
+            }
+            // Пауза после серии вспышек
+            sleep(1000u);
+        }
+
+        // После завершения цикла процесс снова дойдет до pop()
+        // и уснет, если новых ошибок нет.
         check_stack_freespaces();
-        sleep(50u);
     }
 }
 
