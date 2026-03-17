@@ -386,7 +386,7 @@ OS_PROCESS void Proc2::exec()
             // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
             const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
             s_tx_data[0] = head;
-            memcpy(&s_short.gain, &s_tx_data[1], sizeof(s_short.gain));
+            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
             uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
             static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
             s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
@@ -436,7 +436,7 @@ OS_PROCESS void Proc2::exec()
             // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
             const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
             s_tx_data[0] = head;
-            memcpy(&s_short.gain, &s_tx_data[1], sizeof(s_short.gain));
+            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
             uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
             static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
             s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
