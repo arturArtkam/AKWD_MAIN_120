@@ -49,6 +49,7 @@
 					<Add option="-Os" />
 					<Add option="-g3" />
 					<Add symbol='&quot;VECT_TAB_OFFSET = 0&quot;' />
+					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 0&quot;' />
 				</Compiler>
 				<Cpp>
 					<Add option="-fdata-sections" />
@@ -85,6 +86,7 @@
 					<Add option="-Os" />
 					<Add option="-g3" />
 					<Add symbol='&quot;VECT_TAB_OFFSET = 0x4000&quot;' />
+					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 1&quot;' />
 				</Compiler>
 				<Cpp>
 					<Add option="-fdata-sections" />
@@ -118,7 +120,6 @@
 			<Add symbol="STM32F401VC" />
 			<Add symbol="STM32F4XX" />
 			<Add symbol="USE_STDPERIPH_DRIVER" />
-			<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 1&quot;' />
 			<Add symbol='&quot;F_CPU = 24000000ul&quot;' />
 			<Add symbol='&quot;F_APB1 = 24000000ul&quot;' />
 			<Add symbol='&quot;F_SDIO = 24000000ul&quot;' />

@@ -112,7 +112,7 @@ public:
         _addr = addr;
     }
 
-    void read_data(void* buf, size_t buf_len, OS::TMutex& mutex)
+    bool read_data(void* buf, size_t buf_len, OS::TMutex& mutex)
     {
 //        uint8_t query_semen[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
 //        *(uint16_t* )&query_semen[1] = crc16_split(&query_semen[0], sizeof(uint8_t), 0xffff);
@@ -123,13 +123,16 @@ public:
         _uart_ptr->set_rx_pointer(static_cast<uint8_t* >(buf), buf_len);
         _uart_ptr->send_via_dma(query_semen, sizeof(query_semen), false);
 
+        volatile bool result = true;
+
         if (!wait_exchange_end(10))
         {
             _uart_ptr->disable_reciever();
-            Leds::blink_red_n_times(3);
+            result = false;
         }
 
         mutex.unlock();
+        return result;
     }
 };
 

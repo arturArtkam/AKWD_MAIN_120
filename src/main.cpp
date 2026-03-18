@@ -351,15 +351,13 @@ OS_PROCESS void Proc1::exec()
     {
         akwd::erase_timeout() = akwd::sd_card.erase_time_sec() / 2.097152f;
 
-        for (auto i = 0; i < 6; i++)
-        {
-            akwd::leds.red_xor();
-            sleep(50u);
-        }
+        uint8_t err = 5; // Ошибка №5
+        akwd::error_chan.push(err);
     }
     else
     {
-        akwd::leds.red_xor();
+        uint8_t err = 6; // Ошибка №6
+        akwd::error_chan.push(err);
     }
 
     for (;;)
@@ -380,9 +378,22 @@ OS_PROCESS void Proc2::exec()
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
             OS::sleep(10);
-            sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
-            adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex);
-            adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex);
+            if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex))
+            {
+                uint8_t err = 3; // Ошибка №3
+                akwd::error_chan.push(err);
+            }
+            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
+            {
+                uint8_t err = 3; // Ошибка №3
+                akwd::error_chan.push(err);
+            }
+
+            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
+            {
+                uint8_t err = 3; // Ошибка №3
+                akwd::error_chan.push(err);
+            }
             // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
             const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
             s_tx_data[0] = head;
@@ -507,10 +518,12 @@ OS_PROCESS void Proc6::exec()
                 Leds::red_on();
                 sleep(10u);
                 Leds::red_off();
-                sleep(200u);
+                sleep(500u);
             }
             // Пауза после серии вспышек
+//            Leds::red_on();
             sleep(1000u);
+//            Leds::red_off();
         }
 
         // После завершения цикла процесс снова дойдет до pop()
