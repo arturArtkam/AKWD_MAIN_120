@@ -1,7 +1,7 @@
 #ifndef FRAM_MARKUP_H_INCLUDED
 #define FRAM_MARKUP_H_INCLUDED
 
-#include "../../struct_of_data.h"
+#include "struct_of_ak120.h"
 
 struct Fram_markup
 {

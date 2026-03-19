@@ -1,7 +1,7 @@
 #ifndef ALLDATA_H_INCLUDED
 #define ALLDATA_H_INCLUDED
 
-#include "struct_of_data.h"
+#include "struct_of_ak120.h"
 
 class All_data
 {

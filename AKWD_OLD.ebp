@@ -168,7 +168,7 @@
 			<Add option="-lm" />
 		</Linker>
 		<ExtraCommands>
-			<Add before="D:\stm32_prj\meta\h2meta_V2.exe D:\stm32_prj\AKWD\struct_of_data.h D:\stm32_prj\AKWD\AKWD_OLD\inc\struct_meta.h  D:\stm32_prj\meta\Patern.h newFormat" />
+			<Add before="D:\stm32_prj\meta\h2meta_V2.exe D:\stm32_prj\AKWD\AKWD_OLD\inc\struct_of_ak120.h D:\stm32_prj\AKWD\AKWD_OLD\inc\struct_meta.h  D:\stm32_prj\meta\Patern.h newFormat" />
 			<Mode before="1" />
 			<Mode after="0" />
 		</ExtraCommands>
@@ -200,6 +200,7 @@
 		<Unit filename="inc\stm32f4xx.h" />
 		<Unit filename="inc\stm32f4xx_conf.h" />
 		<Unit filename="inc\struct_meta.h" />
+		<Unit filename="inc\struct_of_ak120.h" />
 		<Unit filename="inc\sync_event.h" />
 		<Unit filename="inc\sync_input.h" />
 		<Unit filename="inc\system_stm32f4xx.h" />
@@ -303,7 +304,6 @@
 		<Unit filename="uart_dma_test\stm32_uart_f4xx.h" />
 		<Unit filename="..\automat.h" />
 		<Unit filename="..\boards_exchange.h" />
-		<Unit filename="..\struct_of_data.h" />
 		<Unit filename="..\..\Lib\atomic.h" />
 		<Unit filename="..\..\Lib\bkp_domain.h" />
 		<Unit filename="..\..\Lib\crc16.cpp">
