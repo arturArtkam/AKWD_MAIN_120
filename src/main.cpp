@@ -92,108 +92,171 @@ public:
 
     void read_sensors();
 
+    void map_and_adjust_board(sens_array_t& dst, const sens_array_t& src, const Ee_gain& eep_gains)
+    {
+        // Карта соответствия: 0->3, 1->2, 2->4, 3->5, 4->6, 5->7, 6->1, 7->0
+        static const uint8_t sens_map[8] = {3, 2, 4, 5, 6, 7, 1, 0};
+
+        // Для FKD предполагается, что d0...d7 лежат в памяти подряд
+        using fkd_ptr = int16_t (*)[FKD_LEN];
+        const fkd_ptr src_fkd = (const fkd_ptr)(const_cast<fkd_t*>(&src.fkd));
+        fkd_ptr dst_fkd = (fkd_ptr)&dst.fkd;
+
+        // Аналогично для Gain
+        const uint8_t* src_gain = (const uint8_t*)(const_cast<gain_t*>(&src.gain));
+        uint8_t* dst_gain = (uint8_t*)&dst.gain;
+        const float* eep_g = (const float*)&eep_gains;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            uint8_t src_idx = sens_map[i];
+            dst_gain[i] = src_gain[src_idx];
+            adjust_gain_and_copy(dst_fkd[i], src_fkd[src_idx], eep_g[i]);
+        }
+    }
+
     void fill_datastruct(DataStructW_t* data_)
     {
+        // -- Сбор данных (вне мьютекса, чтобы не держать его долго) --
         ltc2944_bat.read_registers();
-
         Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
         Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
 
-        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
-        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
-        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
-        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
+        float temp = ltc2944_bat.get_temperature();
+        float vcc = ltc2944_bat.get_voltage().val;
+        float amp_h = lrintf(1000.0f * ltc2944_bat.get_current().val);
+        auto xyz_data = axel_3d.read_data();
+        uint32_t sync_p = _ext_trigger.get_sync_periode();
+
+        // -- Критическая секция (только копирование) --
+        s_mutex.lock();
+
+        data_->SYNC_RECIEVER = sync_rx_data;
+
+        data_->AKWD_RX.T = temp;
+        data_->AKWD_RX.AmpH = amp_h;
+        data_->AKWD_RX.vcc = vcc;
+        data_->AKWD_RX.pwr = amp_h * vcc;
         data_->AKWD_RX.vcc_pos_5v = Vcc::read_pos_5v();
         data_->AKWD_RX.vcc_neg_5v = Vcc::read_neg_5v();
-        data_->AKWD_RX.sync_pulses = _ext_trigger.get_sync_periode();
-
-        auto xyz_data = axel_3d.read_data();
+        data_->AKWD_RX.sync_pulses = sync_p;
 
         data_->AKWD_RX.accel.X = xyz_data.a_x;
         data_->AKWD_RX.accel.Y = xyz_data.a_y;
         data_->AKWD_RX.accel.Z = xyz_data.a_z;
 
-////        akwd::leds.green_on();
-        while (s_mutex.is_locked());
+        // -- Обработка плат через вспомогательный метод (устраняем дублирование) --
+        map_and_adjust_board(data_->AKWD_RX.SENS_SHORT, s_short, _short_sens);
+        map_and_adjust_board(data_->AKWD_RX.SENS_LONG, s_long, _long_sens);
 
-        data_->SYNC_RECIEVER = sync_rx_data;
-
-        // -- Старая версия распайки датчиков --
-
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_0; // (8) -> {1} -> 1 (датчик) -> {канал АЦП} -> канал ФКД
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_1; // (7) -> {2} -> 2
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_6; // (5) -> {7} -> 3
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_7; // (6) -> {8} -> 4
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_4; // (3) -> {5} -> 5
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_5; // (4) -> {6} -> 6
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_2; // (2) -> {3} -> 7
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_3; // (1) -> {4} -> 8
-//
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d0, _short_sens.gain_0);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d1, _short_sens.gain_1);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d6, _short_sens.gain_2);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d7, _short_sens.gain_3);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d4, _short_sens.gain_4);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d5, _short_sens.gain_5);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d2, _short_sens.gain_6);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d3, _short_sens.gain_7);
-//
-//        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_0;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_1;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_6;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_7;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_4;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_5;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_2;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_3;
-//
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d0, _long_sens.gain_0);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d1, _long_sens.gain_1);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d6, _long_sens.gain_2);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d7, _long_sens.gain_3);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d4, _long_sens.gain_4);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d5, _long_sens.gain_5);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d2, _long_sens.gain_6);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d3, _long_sens.gain_7);
-
-        // -- Новая версия распайки датчиков 03.2026 --
-
-        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_3;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_2;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_4;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_5;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_6;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_7;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_1;
-        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_0;
-
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d3, _short_sens.gain_0);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d2, _short_sens.gain_1);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d4, _short_sens.gain_2);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d5, _short_sens.gain_3);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d6, _short_sens.gain_4);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d7, _short_sens.gain_5);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d1, _short_sens.gain_6);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d0, _short_sens.gain_7);
-
-        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_3;
-        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_2;
-        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_4;
-        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_5;
-        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_6;
-        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_7;
-        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_1;
-        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_0;
-
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d3, _long_sens.gain_0);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d2, _long_sens.gain_1);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d4, _long_sens.gain_2);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d5, _long_sens.gain_3);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d6, _long_sens.gain_4);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d7, _long_sens.gain_5);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d1, _long_sens.gain_6);
-        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d0, _long_sens.gain_7);
+        s_mutex.unlock();
     }
+
+//    void fill_datastruct(DataStructW_t* data_)
+//    {
+//        ltc2944_bat.read_registers();
+//
+//        Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
+//        Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
+//
+//        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
+//        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
+//        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
+//        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
+//        data_->AKWD_RX.vcc_pos_5v = Vcc::read_pos_5v();
+//        data_->AKWD_RX.vcc_neg_5v = Vcc::read_neg_5v();
+//        data_->AKWD_RX.sync_pulses = _ext_trigger.get_sync_periode();
+//
+//        auto xyz_data = axel_3d.read_data();
+//
+//        data_->AKWD_RX.accel.X = xyz_data.a_x;
+//        data_->AKWD_RX.accel.Y = xyz_data.a_y;
+//        data_->AKWD_RX.accel.Z = xyz_data.a_z;
+//
+////        akwd::leds.green_on();
+////        while (s_mutex.is_locked());
+//        s_mutex.lock();
+//
+//        data_->SYNC_RECIEVER = sync_rx_data;
+//
+//        // -- Старая версия распайки датчиков --
+//
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_0; // (8) -> {1} -> 1 (датчик) -> {канал АЦП} -> канал ФКД
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_1; // (7) -> {2} -> 2
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_6; // (5) -> {7} -> 3
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_7; // (6) -> {8} -> 4
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_4; // (3) -> {5} -> 5
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_5; // (4) -> {6} -> 6
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_2; // (2) -> {3} -> 7
+////        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_3; // (1) -> {4} -> 8
+////
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d0, _short_sens.gain_0);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d1, _short_sens.gain_1);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d6, _short_sens.gain_2);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d7, _short_sens.gain_3);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d4, _short_sens.gain_4);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d5, _short_sens.gain_5);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d2, _short_sens.gain_6);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d3, _short_sens.gain_7);
+////
+////        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_0;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_1;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_6;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_7;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_4;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_5;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_2;
+////        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_3;
+////
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d0, _long_sens.gain_0);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d1, _long_sens.gain_1);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d6, _long_sens.gain_2);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d7, _long_sens.gain_3);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d4, _long_sens.gain_4);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d5, _long_sens.gain_5);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d2, _long_sens.gain_6);
+////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d3, _long_sens.gain_7);
+//
+//        // -- Новая версия распайки датчиков 03.2026 --
+//
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_3;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_2;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_4;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_5;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_6;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_7;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_1;
+//        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_0;
+//
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d3, _short_sens.gain_0);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d2, _short_sens.gain_1);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d4, _short_sens.gain_2);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d5, _short_sens.gain_3);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d6, _short_sens.gain_4);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d7, _short_sens.gain_5);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d1, _short_sens.gain_6);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d0, _short_sens.gain_7);
+//
+//        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_3;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_2;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_4;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_5;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_6;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_7;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_1;
+//        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_0;
+//
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d3, _long_sens.gain_0);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d2, _long_sens.gain_1);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d4, _long_sens.gain_2);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d5, _long_sens.gain_3);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d6, _long_sens.gain_4);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d7, _long_sens.gain_5);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d1, _long_sens.gain_6);
+//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d0, _long_sens.gain_7);
+//
+//        s_mutex.unlock();
+//    }
 
     void adjust_gain_and_copy(int16_t (&buf_dst)[FKD_LEN], int16_t (&buf_src)[FKD_LEN], float ch_gain)
     {
@@ -366,10 +429,137 @@ OS_PROCESS void Proc1::exec()
     }
 }
 
+//template <>
+//OS_PROCESS void Proc2::exec()
+//{
+//    using namespace akwd;
+//    for (;;)
+//    {
+//#if AKWD_USE_EXTERNAL_SYNC == 1
+//        timer_or_ext_sync.wait();
+//
+//        if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
+//        {
+//            OS::sleep(10);
+//            if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex))
+//            {
+//                uint8_t err = 3; // Ошибка №3
+//                akwd::error_chan.push(err);
+//            }
+//            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
+//            {
+//                uint8_t err = 3; // Ошибка №3
+//                akwd::error_chan.push(err);
+//            }
+//
+//            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
+//            {
+//                uint8_t err = 3; // Ошибка №3
+//                akwd::error_chan.push(err);
+//            }
+//            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
+//            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
+//            s_tx_data[0] = head;
+//            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
+//            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
+//            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
+//            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
+//            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
+//            adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex);
+//
+//
+////            OS::sleep(10);
+////            while (workdata.mtx.is_locked());
+////            sync_reciever.read_data(&workdata.vault.SYNC_RECIEVER, sizeof(sync_rx_t), workdata.mtx);
+////            sync_reciever.read_data(&workdata.vault.AKWD_RX.SENS_SHORT, sizeof(sens_array_t), workdata.mtx);
+////            sync_reciever.read_data(&workdata.vault.AKWD_RX.SENS_LONG, sizeof(sens_array_t), workdata.mtx);
+//
+//            if (fsm.get() == Fsm::APP_WORK)
+//            {
+//                workdata.vault.Time = c_timer.get();
+//                while (workdata.mtx.is_locked());
+//                workdata.mtx.lock();
+//                leds.red_on();
+//                fill_datastruct(&workdata.vault);
+//                workdata.mtx.unlock();
+//
+//                sd_card.write<sizeof(DataStructR_t)>(&workdata.vault.Time);
+//                leds.red_off();
+//            }
+//        }
+//#else
+//        if (akwd::pwr.check_flag())
+//        {
+//            sync_start(&sb1w);
+//            OS::sleep(5);
+//            // sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
+//            sync_rx_data.sync_flag ^= 1;
+//            sync_rx_data.sync_timer = 2090000 + rand() % 10000;
+//            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
+//            {
+//                uint8_t err = 3; // Ошибка №3
+//                akwd::error_chan.push(err);
+//            }
+//
+//            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
+//            {
+//                uint8_t err = 3; // Ошибка №3
+//                akwd::error_chan.push(err);
+//            }
+//
+//            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
+//            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
+//            s_tx_data[0] = head;
+//            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
+//            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
+//            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
+//            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
+//            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
+//
+//            if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex))
+//            {
+//                uint8_t err = 4; // Ошибка №4
+//                akwd::error_chan.push(err);
+//            }
+//        }
+//        OS::sleep(2000);
+//#endif
+//    }
+//}
+
 template <>
 OS_PROCESS void Proc2::exec()
 {
     using namespace akwd;
+
+    auto update_sensors_and_sync_gain = [&]() {
+        // -- Чтение данных с первой платы --
+        if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex)) {
+            akwd::error_chan.push(3);
+        }
+
+        // -- Чтение данных со второй платы --
+        if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex)) {
+            akwd::error_chan.push(3);
+        }
+
+        // -- Формирование пакета управления коэффициентами усиления (KU) --
+        const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
+        s_tx_data[0] = head;
+        memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
+
+        // --  Расчет CRC --
+        crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
+        const uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
+        s_tx_data[crc_pos]     = 0xFF; // Заглушка из оригинала
+        s_tx_data[crc_pos + 1] = 0x5A; // Заглушка из оригинала
+
+        // 4. Отправка коэффициентов на плату 2
+        if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + 2, s_mutex)) {
+            akwd::error_chan.push(4);
+        }
+    };
+
     for (;;)
     {
 #if AKWD_USE_EXTERNAL_SYNC == 1
@@ -378,43 +568,20 @@ OS_PROCESS void Proc2::exec()
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
             OS::sleep(10);
-            if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex))
-            {
-                uint8_t err = 3; // Ошибка №3
-                akwd::error_chan.push(err);
-            }
-            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
-            {
-                uint8_t err = 3; // Ошибка №3
-                akwd::error_chan.push(err);
+
+            // Чтение данных синхронизатора
+            if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex)) {
+                akwd::error_chan.push(3);
             }
 
-            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
-            {
-                uint8_t err = 3; // Ошибка №3
-                akwd::error_chan.push(err);
-            }
-            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
-            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
-            s_tx_data[0] = head;
-            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
-            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
-            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
-            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
-            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
-            adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex);
-
-
-//            OS::sleep(10);
-//            while (workdata.mtx.is_locked());
-//            sync_reciever.read_data(&workdata.vault.SYNC_RECIEVER, sizeof(sync_rx_t), workdata.mtx);
-//            sync_reciever.read_data(&workdata.vault.AKWD_RX.SENS_SHORT, sizeof(sens_array_t), workdata.mtx);
-//            sync_reciever.read_data(&workdata.vault.AKWD_RX.SENS_LONG, sizeof(sens_array_t), workdata.mtx);
+            // Вызов общей логики АЦП
+            update_sensors_and_sync_gain();
 
             if (fsm.get() == Fsm::APP_WORK)
             {
                 workdata.vault.Time = c_timer.get();
-                while (workdata.mtx.is_locked());
+
+                // Исправлено: lock() сам дождется освобождения, check_locked тут вреден
                 workdata.mtx.lock();
                 leds.red_on();
                 fill_datastruct(&workdata.vault);
@@ -429,35 +596,12 @@ OS_PROCESS void Proc2::exec()
         {
             sync_start(&sb1w);
             OS::sleep(5);
-            // sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex);
+
             sync_rx_data.sync_flag ^= 1;
             sync_rx_data.sync_timer = 2090000 + rand() % 10000;
-            if (!adc_board_1.read_data(&s_short, sizeof(sens_array_t), s_mutex))
-            {
-                uint8_t err = 3; // Ошибка №3
-                akwd::error_chan.push(err);
-            }
 
-            if (!adc_board_2.read_data(&s_long, sizeof(sens_array_t), s_mutex))
-            {
-                uint8_t err = 3; // Ошибка №3
-                akwd::error_chan.push(err);
-            }
-
-            // Программирование коэффициентов усиления платы ближнего пояса в плату дальнего пояса
-            const uint8_t head = uint8_t((Exchange_between_boards::ADC_2 << 4) | Exchange_between_boards::CMD_PRG_KU);
-            s_tx_data[0] = head;
-            memcpy(&s_tx_data[1], &s_short.gain, sizeof(s_short.gain));
-            uint16_t crc = crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
-            static uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
-            s_tx_data[crc_pos] = 0xFF; //crc & 0xFF;
-            s_tx_data[crc_pos + 1] = 0x5A; //crc >> 8;
-
-            if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + sizeof(crc), s_mutex))
-            {
-                uint8_t err = 4; // Ошибка №4
-                akwd::error_chan.push(err);
-            }
+            // Вызов той же самой общей логики
+            update_sensors_and_sync_gain();
         }
         OS::sleep(2000);
 #endif
