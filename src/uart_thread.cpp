@@ -53,6 +53,12 @@ void uart_thread()
             }
                 break;
 
+            case Pc1w::Protocol::CMD_TXRX_SYNC:
+            {
+                ext_trigger.pc1w_sync();
+            }
+                break;
+
             case Pc1w::Protocol::CMD_R_INFORM:
                 /* "только время" запрос */
                 if (pc_uart.get_count() == 4)

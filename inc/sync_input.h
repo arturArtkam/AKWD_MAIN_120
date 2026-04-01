@@ -86,6 +86,20 @@ public:
         NVIC_Init(&nvic);
     }
 
+    void pc1w_sync()
+    {
+        const static uint8_t query[] = {Exchange_between_boards::CMD_SYNC_START, 0x7E, 0xC4};
+
+        if (_enabled)
+        {
+            Dwt::delay_us(600);
+
+            _ctimer_lnk.inc();
+            _uart_ptr.send_via_dma(query, sizeof(query), true);
+            _sync_event.signal_from_isr(Sync_event_src::SYNC_EVENT);
+        }
+    }
+
     void enable()
     {
         _enabled = true;
