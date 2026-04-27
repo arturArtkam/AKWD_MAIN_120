@@ -247,8 +247,20 @@ typedef struct
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+//-name = Синхронизация
 typedef struct
 {
+    //-name = Синхронизатор-1_Линия-2
+    uint8_t flag;
+} Sync_type;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct
+{
+	//-structname
+	Sync_type sync;
+
 	//-name = Чувствительность_БЗ
     Ee_gain gain_short;
 

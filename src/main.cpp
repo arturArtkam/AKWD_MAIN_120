@@ -73,7 +73,7 @@ class Sens_data final
     Ee_gain _long_sens;
     _I2c i2c_bus;
     Ltc2944<_I2c> ltc2944_bat;
-    Axel_kx axel_3d;
+    Axel_ais axel_3d;
     Adcboard* adc_boards[2];
     Sync_rx_board& _sync_rx_board;
     Sync_input& _ext_trigger;
@@ -370,7 +370,10 @@ int main()
 
 #if AKWD_USE_EXTERNAL_SYNC == 1
     #warning("Используется ВНЕШНЯЯ синронизация")
+    uint8_t sync_input_type = 0;
+    Fram_vault::Fram::read_buf(&sync_input_type, offsetof(EepData_t, EepData_t::sync), sizeof(uint8_t));
     akwd::ext_trigger.enable();
+    akwd::ext_trigger.select_input(*((Sync_source*)&sync_input_type));
 #else
     #warning("Используется ВНУТРЕНЯЯ синронизация")
 #endif

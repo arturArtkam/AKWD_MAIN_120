@@ -63,4 +63,10 @@ void EXTI0_IRQHandler(void)
     akwd::ext_trigger.isr();
 }
 
+void EXTI15_10_IRQHandler(void)
+{
+    OS::TISRW tisrw;
+    akwd::ext_trigger.isr();
+}
+
 } /* extern "C" */

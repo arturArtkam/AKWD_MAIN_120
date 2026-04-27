@@ -7,14 +7,25 @@
 #include "../../boards_exchange.h"
 #include "../../../Lib/dwt.h"
 
+enum class Sync_source : uint8_t
+{
+    INPUT_A,
+    INPUT_B
+};
+
+
 class Sync_input : public Ipower
 {
+    typedef Interrupt_pin<PORTA, 0, trigger_t::RISING, GPIO_PuPd_DOWN> Synchro_exti;
+    typedef Interrupt_pin<PORTB, 12, trigger_t::RISING, GPIO_PuPd_DOWN> Line_exti;
+
     Sb1w& _uart_ptr;
     Sync_event& _sync_event;
     Ctimer& _ctimer_lnk;
     uint32_t _start_time;
     uint32_t _sync_period;
     bool _enabled;
+    volatile Sync_source _active_input;
 
 public:
     Sync_input(Sb1w& interface, Ctimer& ctimer, Sync_event& sync) :
@@ -23,7 +34,8 @@ public:
         _ctimer_lnk(ctimer),
         _start_time(Dwt::cycles()),
         _sync_period(0),
-        _enabled(false)
+        _enabled(false),
+        _active_input(Sync_source::INPUT_A)
     {
         init();
         Dwt::start();
@@ -46,44 +58,28 @@ public:
 
     void init()
     {
-        pin<PORTA, 0, GPIO_Mode_IN>::init();
-        pin<PORTA, 0, GPIO_Mode_IN>::pulldown();
-
-        EXTI_InitTypeDef exti;
-        NVIC_InitTypeDef nvic;
-
-        RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
-
-        exti.EXTI_Line = EXTI_Line0;
-        exti.EXTI_Mode = EXTI_Mode_Interrupt;
-        exti.EXTI_Trigger = EXTI_Trigger_Rising;
-        exti.EXTI_LineCmd = ENABLE;
-
-        EXTI_Init(&exti);
-
-        nvic.NVIC_IRQChannel = EXTI0_IRQn;
-        nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
-        nvic.NVIC_IRQChannelCmd = ENABLE;
-
-        NVIC_Init(&nvic);
+        Synchro_exti::init();
+        Line_exti::init();
     }
 
-    void deinit()
+    void select_input(Sync_source src)
     {
-        EXTI_InitTypeDef exti;
-        NVIC_InitTypeDef nvic;
+        if (src == Sync_source::INPUT_A)
+        {
+            Line_exti::deinit();
+            Line_exti::disable_irq();
+            Synchro_exti::init();
+            Synchro_exti::enable_irq();
+        }
+        else
+        {
+            Synchro_exti::deinit();
+            Synchro_exti::disable_irq();
+            Line_exti::init();
+            Line_exti::enable_irq();
+        }
 
-        exti.EXTI_Line = EXTI_Line0;
-        exti.EXTI_Mode = EXTI_Mode_Interrupt;
-        exti.EXTI_Trigger = EXTI_Trigger_Rising;
-        exti.EXTI_LineCmd = DISABLE;
-
-        nvic.NVIC_IRQChannel = EXTI0_IRQn;
-        nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
-        nvic.NVIC_IRQChannelCmd = DISABLE;
-
-        EXTI_Init(&exti);
-        NVIC_Init(&nvic);
+        _active_input = src;
     }
 
     void pc1w_sync()

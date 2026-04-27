@@ -168,7 +168,7 @@
 			<Add option="-lm" />
 		</Linker>
 		<ExtraCommands>
-			<Add before="D:\stm32_prj\meta\h2meta_V2.exe D:\stm32_prj\AKWD\AKWD_OLD\inc\struct_of_ak120.h D:\stm32_prj\AKWD\AKWD_OLD\inc\struct_meta.h  D:\stm32_prj\meta\Patern.h newFormat" />
+			<Add before="D:\stm32_prj\meta\h2meta_V2.exe D:\stm32_prj\AKWD\AKWD_120_RX_MAINBOARD\inc\struct_of_ak120.h D:\stm32_prj\AKWD\AKWD_120_RX_MAINBOARD\inc\struct_meta.h  D:\stm32_prj\meta\Patern.h newFormat" />
 			<Mode before="1" />
 			<Mode after="0" />
 		</ExtraCommands>
