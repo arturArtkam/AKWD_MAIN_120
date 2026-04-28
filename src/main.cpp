@@ -372,8 +372,9 @@ int main()
     #warning("Используется ВНЕШНЯЯ синронизация")
     uint8_t sync_input_type = 0;
     Fram_vault::Fram::read_buf(&sync_input_type, offsetof(EepData_t, EepData_t::sync), sizeof(uint8_t));
-    akwd::ext_trigger.enable();
+
     akwd::ext_trigger.select_input(*((Sync_source*)&sync_input_type));
+    akwd::ext_trigger.enable();
 #else
     #warning("Используется ВНУТРЕНЯЯ синронизация")
 #endif
@@ -554,8 +555,8 @@ OS_PROCESS void Proc2::exec()
         // --  Расчет CRC --
         crc16_split(&s_tx_data[0], sizeof(head) + sizeof(s_short.gain), 0xffff);
         const uint16_t crc_pos = sizeof(head) + sizeof(s_short.gain);
-        s_tx_data[crc_pos]     = 0xFF; // Заглушка из оригинала
-        s_tx_data[crc_pos + 1] = 0x5A; // Заглушка из оригинала
+        s_tx_data[crc_pos]     = 0xFF; // Заглушка
+        s_tx_data[crc_pos + 1] = 0x5A; // Заглушка
 
         // 4. Отправка коэффициентов на плату 2
         if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + 2, s_mutex)) {
@@ -574,7 +575,7 @@ OS_PROCESS void Proc2::exec()
 
             // Чтение данных синхронизатора
             if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex)) {
-                akwd::error_chan.push(3);
+                akwd::error_chan.push(2);
             }
 
             // Вызов общей логики АЦП

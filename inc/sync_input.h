@@ -9,7 +9,7 @@
 
 enum class Sync_source : uint8_t
 {
-    INPUT_A,
+    INPUT_A = 1,
     INPUT_B
 };
 
@@ -37,7 +37,7 @@ public:
         _enabled(false),
         _active_input(Sync_source::INPUT_A)
     {
-        init();
+//        init();
         Dwt::start();
     }
 
@@ -66,15 +66,17 @@ public:
     {
         if (src == Sync_source::INPUT_A)
         {
-            Line_exti::deinit();
-            Line_exti::disable_irq();
+//            Line_exti::deinit();
+//            Line_exti::disable_irq();
+
             Synchro_exti::init();
-            Synchro_exti::enable_irq();
+//            Synchro_exti::enable_irq();
         }
         else
         {
-            Synchro_exti::deinit();
-            Synchro_exti::disable_irq();
+//            Synchro_exti::deinit();
+//            Synchro_exti::disable_irq();
+
             Line_exti::init();
             Line_exti::enable_irq();
         }
@@ -110,9 +112,11 @@ public:
     {
         const static uint8_t query[] = {Exchange_between_boards::CMD_SYNC_START, 0x7E, 0xC4};
 
-        if (READ_BIT(EXTI->PR, EXTI_Line0))
-        {
-            EXTI->PR = EXTI_Line0;
+//        if (READ_BIT(EXTI->PR, EXTI_Line0))
+//        {
+//            EXTI->PR = EXTI_Line0;
+            Synchro_exti::clear_pending();
+            Line_exti::clear_pending();
             _sync_period = (Dwt::cycles() - _start_time);
             _start_time = Dwt::cycles();
 
@@ -124,7 +128,7 @@ public:
                 _uart_ptr.send_via_dma(query, sizeof(query), true);
                 _sync_event.signal_from_isr(Sync_event_src::SYNC_EVENT);
             }
-        }
+//        }
     }
 };
 

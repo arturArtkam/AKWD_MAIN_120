@@ -13,7 +13,7 @@ class unused_pinlist
     typedef pin<PORTB, 2, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_28;
     typedef pin<PORTB, 8, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_61;
     typedef pin<PORTB, 10, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_29;
-    typedef pin<PORTB, 12, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_33;
+//    typedef pin<PORTB, 12, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_33;
     typedef pin<PORTB, 13, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_34;
     typedef pin<PORTB, 14, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_35;
     typedef pin<PORTB, 15, GPIO_Mode_AN, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_DOWN> unused_pin_36;
@@ -38,7 +38,7 @@ public:
         unused_pin_28::init();
         unused_pin_61::init();
         unused_pin_29::init();
-        unused_pin_33::init();
+//        unused_pin_33::init();
         unused_pin_34::init();
         unused_pin_35::init();
         unused_pin_36::init();

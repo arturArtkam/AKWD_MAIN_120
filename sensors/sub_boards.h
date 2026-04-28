@@ -118,7 +118,7 @@ public:
 //        *(uint16_t* )&query_semen[1] = crc16_split(&query_semen[0], sizeof(uint8_t), 0xffff);
         uint8_t query_semen[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA)};
 
-        while (mutex.is_locked());
+//        while (mutex.is_locked());
         mutex.lock();
         _uart_ptr->set_rx_pointer(static_cast<uint8_t* >(buf), buf_len);
         _uart_ptr->send_via_dma(query_semen, sizeof(query_semen), false);

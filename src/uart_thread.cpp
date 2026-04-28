@@ -55,7 +55,7 @@ void uart_thread()
 
             case Pc1w::Protocol::CMD_TXRX_SYNC:
             {
-                ext_trigger.pc1w_sync();
+//                ext_trigger.pc1w_sync();
             }
                 break;
 

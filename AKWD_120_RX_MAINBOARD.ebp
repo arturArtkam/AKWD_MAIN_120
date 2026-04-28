@@ -49,7 +49,7 @@
 					<Add option="-Os" />
 					<Add option="-g3" />
 					<Add symbol='&quot;VECT_TAB_OFFSET = 0&quot;' />
-					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 0&quot;' />
+					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 1&quot;' />
 				</Compiler>
 				<Cpp>
 					<Add option="-fdata-sections" />
