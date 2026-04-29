@@ -24,8 +24,8 @@ private:
         uint8_t charge_alert_hi : 1;
         uint8_t temp_alert : 1;
         uint8_t acc_charge : 1;
+        uint8_t current_alert : 1;
         uint8_t reserved : 1;
-        uint8_t chip_id : 1;
     };
 
     struct regCtrl_t
@@ -143,6 +143,9 @@ public:
         if (_i2c_bus->write_buf(I2C_ADR, &status_reg_addr, data_len) == _i2c_bus->RESULT_SUCCESS)
         {
             _i2c_bus->read_buf(I2C_ADR, (uint8_t* )&_regList.status, sizeof(_regList));
+
+            _regList.status.underVoltage_lock = 0;
+
             /* Если переполнение регистра счетчика заряда. */
             if (_regList.acc_charge == 0xFFFF)
             {

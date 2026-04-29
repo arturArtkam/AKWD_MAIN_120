@@ -17,9 +17,9 @@ private:
     {
         volatile auto i = 10;
         //#warning "kgkvkbhjk!"
-        while(i)
+        while(i--)
         {
-            i--;
+            __NOP();
         }
     }
 

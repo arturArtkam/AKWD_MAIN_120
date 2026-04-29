@@ -90,7 +90,10 @@ public:
 //        static_assert(std::is_trivial<_I2c>::value == true, "wrong!");
     }
 
-    void read_sensors();
+    void read_sensors()
+    {
+        //ltc2944_bat.read_registers();
+    }
 
     void map_and_adjust_board(sens_array_t& dst, const sens_array_t& src, const Ee_gain& eep_gains)
     {
@@ -122,9 +125,9 @@ public:
         Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
         Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
 
-        float temp = ltc2944_bat.get_temperature();
-        float vcc = ltc2944_bat.get_voltage().val;
-        float amp_h = lrintf(1000.0f * ltc2944_bat.get_current().val);
+        volatile float temp = ltc2944_bat.get_temperature();
+        volatile float vcc = ltc2944_bat.get_voltage().val;
+        volatile float amp_h = lrintf(1000.0f * ltc2944_bat.get_current().val);
         auto xyz_data = axel_3d.read_data();
         uint32_t sync_p = _ext_trigger.get_sync_periode();
 
@@ -137,6 +140,10 @@ public:
         data_->AKWD_RX.AmpH = amp_h;
         data_->AKWD_RX.vcc = vcc;
         data_->AKWD_RX.pwr = amp_h * vcc;
+//        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
+//        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
+//        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
+//        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
         data_->AKWD_RX.vcc_pos_5v = Vcc::read_pos_5v();
         data_->AKWD_RX.vcc_neg_5v = Vcc::read_neg_5v();
         data_->AKWD_RX.sync_pulses = sync_p;
@@ -568,6 +575,8 @@ OS_PROCESS void Proc2::exec()
     {
 #if AKWD_USE_EXTERNAL_SYNC == 1
         timer_or_ext_sync.wait();
+
+        sensors.read_sensors();
 
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
