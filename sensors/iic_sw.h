@@ -2,103 +2,153 @@
 #define I2C_HPP
 
 template <class scl, class sda>
-class IIC_sw
+class I2C_sw
 {
 public:
     enum result_t : int8_t
     {
         RESULT_SUCCESS = 0,
-        RESULT_ERROR = -1
+        RESULT_ERROR = -1,
+        RESULT_TIMEOUT = -2
     };
 
 private:
-    __INLINE_ALWAYS void delay()
-    //__attribute__ ((noinline)) void delay()
+    static constexpr uint32_t TIMEOUT = 10000;
+
+    static inline void delay()
     {
-        volatile auto i = 10;
-        //#warning "kgkvkbhjk!"
-        while(i--)
-        {
+        for (volatile int i = 0; i < 50; ++i)
             __NOP();
+    }
+
+    // Ждём, пока SCL реально станет HIGH (clock stretching)
+    static bool wait_scl_high()
+    {
+        uint32_t timeout = TIMEOUT;
+        while (!scl::read())
+        {
+            if (--timeout == 0)
+                return false;
         }
+        return true;
     }
 
-    __INLINE_ALWAYS bool start()
+    static bool bus_free()
     {
-        scl::hi();						// отпустить обе линии, на случай
-        sda::hi();						// на случай, если они были прижаты
-
-        delay();
-
-        if (!sda::read())			// если линия SDA прижата слейвом,
-            return false;			// то сформировать старт невозможно, выход с ошибкой
-
-        sda::lo();						// прижимаем SDA к земле
-        delay();
-
-        if (sda::read())				// если не прижалась, то шина неисправна
-            return false;			// выход с ошибкой
-
-        delay();
-
-        return true;				// старт успешно сформирован
+        return scl::read() && sda::read();
     }
-    // последовательность для формирования Стопа
-    void stop()
+
+    // START или REPEATED START
+    static bool start()
     {
-        scl::lo();
+        sda::hi();
+        scl::hi();
+
+        if (!wait_scl_high())
+            return false;
+
+        if (!sda::read())
+            return false;
+
         delay();
+
         sda::lo();
         delay();
-        scl::hi();
+
+        scl::lo();
+        return true;
+    }
+
+    static void stop()
+    {
+        sda::lo();
         delay();
+
+        scl::hi();
+        wait_scl_high();
+        delay();
+
         sda::hi();
         delay();
     }
 
-    void ack()
+    static bool write_bit(bool bit)
     {
-        scl::lo();
+        if (bit)
+            sda::hi();
+        else
+            sda::lo();
+
         delay();
-        sda::lo();						// прижимаем линию SDA к земле
-        delay();
-        scl::hi();						// и делаем один клик линием SCL
-        delay();
-        scl::lo();
-        delay();
-    }
-    //Отправка последовательности NO ACK в шину
-    void no_ack()	//
-    {
-        scl::lo();
-        delay();
-        sda::hi();						// отпускаем линию SDA
-        delay();
-        scl::hi();						// и делаем один клик линием SCL
-        delay();
-        scl::lo();
-        delay();
-    }
-    // проверка шины на наличие ACK от слейва
-    bool wait_ack()
-    {
-        scl::lo();
-        delay();
-        sda::hi();
-        delay();
-        scl::hi();						// делаем половину клика линией SCL
-        delay();
-        if (sda::read())
-        {			// и проверяем, прижал ли слейв линию SDA
-            scl::lo();
+
+        scl::hi();
+        if (!wait_scl_high())
             return false;
+
+        delay();
+
+        scl::lo();
+        return true;
+    }
+
+    static bool read_bit(bool &bit)
+    {
+        sda::hi(); // release line
+
+        delay();
+
+        scl::hi();
+        if (!wait_scl_high())
+            return false;
+
+        delay();
+
+        bit = sda::read();
+
+        scl::lo();
+        return true;
+    }
+
+    static bool write_byte(uint8_t data)
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if (!write_bit(data & 0x80))
+                return false;
+
+            data <<= 1;
         }
-        scl::lo();						// завершаем клик линией SCL
+
+        // Чтение ACK
+        bool ack = false;
+        if (!read_bit(ack))
+            return false;
+
+        return (ack == 0);
+    }
+
+    static bool read_byte(uint8_t &data, bool send_ack)
+    {
+        data = 0;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            bool bit;
+            if (!read_bit(bit))
+                return false;
+
+            data = (data << 1) | bit;
+        }
+
+        // ACK/NACK
+        if (!write_bit(!send_ack))
+            return false;
+
         return true;
     }
 
 public:
-    IIC_sw()
+    I2C_sw()
     {
         scl::init();
         sda::init();
@@ -107,111 +157,101 @@ public:
         sda::hi();
     }
 
-    void put_byte(uint8_t data)
-    {
-        uint_fast8_t i = 8;				// нужно отправить 8 бит данных
-        while (i--)
-        {				// пока не отправили все биты
-            scl::lo();					// прижимаем линию SCL к земле
-            delay();
-
-            if ( data & 0x80 )		// и выставляем на линии SDA нужный уровень
-                sda::hi();
-            else
-                sda::lo();
-
-            data <<= 1;
-
-            delay();
-
-            scl::hi();					// отпускаем линию SCL
-            delay();		// после этого слейв сразу же прочитает значение на линии SDA
-        }
-
-        scl::lo();
-    }
-
-    uint8_t get_byte()
-    {
-        volatile auto i = 8;		// нужно отправить 8 бит данных
-        uint8_t data = 0;
-
-        sda::hi();						// отпускаем линию SDA. управлять ей будет слейв
-        while (i--)
-        {				// пока не получили все биты
-            data <<= 1;
-            scl::lo();					// делаем клик линией SCL
-            delay();
-            scl::hi();
-            delay();
-
-            if (sda::read())
-            {		// читаем значение на линии SDA
-                data |= 0x01;
-            }
-        }
-        scl::lo();
-        return data;				// возвращаем прочитанное значение
-    }
-
-    result_t write_buf(uint8_t chipAddress, uint8_t const* buffer, uint32_t sizeOfBuffer)
+    result_t write_buf(uint8_t addr, const uint8_t* data, uint32_t size)
     {
         if (!start())
             return RESULT_ERROR;
 
-        put_byte(chipAddress);
-        if (!wait_ack())
+        if (!write_byte((addr << 1) | 0))
         {
             stop();
             return RESULT_ERROR;
         }
 
-        while (sizeOfBuffer != 0)
+        while (size--)
         {
-            put_byte(*buffer);
-            if (!wait_ack())
+            if (!write_byte(*data++))
             {
                 stop();
                 return RESULT_ERROR;
             }
-
-            buffer++;
-            sizeOfBuffer--;
         }
+
         stop();
         return RESULT_SUCCESS;
     }
 
-    result_t read_buf(uint8_t chipAddress, uint8_t* buffer, uint32_t sizeOfBuffer)
+    result_t read_buf(uint8_t addr, uint8_t* data, uint32_t size)
     {
         if (!start())
             return RESULT_ERROR;
 
-        put_byte(chipAddress + 1);
-
-        if (!wait_ack())
+        if (!write_byte((addr << 1) | 1))
         {
             stop();
             return RESULT_ERROR;
         }
 
-        while (sizeOfBuffer != 0)
+        while (size--)
         {
-            *buffer = get_byte();
+            bool ack = (size != 0);
 
-            buffer++;
-            sizeOfBuffer--;
-            if (sizeOfBuffer == 0)
+            if (!read_byte(*data++, ack))
             {
-                no_ack();
-                break;
+                stop();
+                return RESULT_ERROR;
             }
-            else
-                ack();
         }
 
         stop();
+        return RESULT_SUCCESS;
+    }
 
+    // Комбинированная операция (очень важно для регистров устройств!)
+    result_t write_read(uint8_t addr,
+                        const uint8_t* wdata, uint32_t wsize,
+                        uint8_t* rdata, uint32_t rsize)
+    {
+        if (!start())
+            return RESULT_ERROR;
+
+        if (!write_byte((addr << 1) | 0))
+        {
+            stop();
+            return RESULT_ERROR;
+        }
+
+        while (wsize--)
+        {
+            if (!write_byte(*wdata++))
+            {
+                stop();
+                return RESULT_ERROR;
+            }
+        }
+
+        // REPEATED START
+        if (!start())
+            return RESULT_ERROR;
+
+        if (!write_byte((addr << 1) | 1))
+        {
+            stop();
+            return RESULT_ERROR;
+        }
+
+        while (rsize--)
+        {
+            bool ack = (rsize != 0);
+
+            if (!read_byte(*rdata++, ack))
+            {
+                stop();
+                return RESULT_ERROR;
+            }
+        }
+
+        stop();
         return RESULT_SUCCESS;
     }
 };

@@ -67,7 +67,7 @@ class Sens_data final
 
     typedef pin<PORTB, 0, GPIO_Mode_OUT, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_NOPULL> _Scl_pin;
     typedef pin<PORTC, 5, GPIO_Mode_OUT, GPIO_Speed_2MHz, GPIO_OType_OD, GPIO_PuPd_NOPULL> _Sda_pin;
-    typedef IIC_sw<_Scl_pin, _Sda_pin> _I2c;
+    typedef I2C_sw<_Scl_pin, _Sda_pin> _I2c;
 
     Ee_gain _short_sens;
     Ee_gain _long_sens;
@@ -92,7 +92,7 @@ public:
 
     void read_sensors()
     {
-        //ltc2944_bat.read_registers();
+        ltc2944_bat.read_registers();
     }
 
     void map_and_adjust_board(sens_array_t& dst, const sens_array_t& src, const Ee_gain& eep_gains)
@@ -121,7 +121,7 @@ public:
     void fill_datastruct(DataStructW_t* data_)
     {
         // -- Сбор данных (вне мьютекса, чтобы не держать его долго) --
-        ltc2944_bat.read_registers();
+//        ltc2944_bat.read_registers();
         Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
         Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
 
@@ -144,8 +144,8 @@ public:
 //        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
 //        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
 //        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
-        data_->AKWD_RX.vcc_pos_5v = Vcc::read_pos_5v();
-        data_->AKWD_RX.vcc_neg_5v = Vcc::read_neg_5v();
+        data_->AKWD_RX.vcc_pos_5v = 5; //Vcc::read_pos_5v();
+        data_->AKWD_RX.vcc_neg_5v = -5; //Vcc::read_neg_5v();
         data_->AKWD_RX.sync_pulses = sync_p;
 
         data_->AKWD_RX.accel.X = xyz_data.a_x;
@@ -576,10 +576,10 @@ OS_PROCESS void Proc2::exec()
 #if AKWD_USE_EXTERNAL_SYNC == 1
         timer_or_ext_sync.wait();
 
-        sensors.read_sensors();
-
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
+//            sensors.read_sensors();
+
             OS::sleep(10);
 
             // Чтение данных синхронизатора
@@ -612,6 +612,9 @@ OS_PROCESS void Proc2::exec()
 
             sync_rx_data.sync_flag ^= 1;
             sync_rx_data.sync_timer = 2090000 + rand() % 10000;
+
+
+            sensors.read_sensors();
 
             // Вызов той же самой общей логики
             update_sensors_and_sync_gain();
@@ -647,6 +650,7 @@ OS_PROCESS void Proc5::exec()
 
     for (;;)
     {
+        akwd::sensors.read_sensors();
         akwd::nv_vars.save_variables();
         sleep(5000u);
     }

@@ -92,7 +92,7 @@ private:
 
     enum
     {
-        I2C_ADR = 0xC8,
+        I2C_ADR = 0x64,
         R_SENS_mOHM = 50
     };
 
@@ -125,53 +125,82 @@ public:
         {
             write_charge_cnt(0.0f);
         }
-        //_i2c_bus->write_buf(I2C_ADR, ctrl_reg, 2);
+
+//        init();
+
+
+//        _i2c_bus->write_buf(I2C_ADR, ctrl_reg, 2);
     }
 
+//    void read_registers()
+//    {
+//        const uint8_t status_reg_addr = reg_map::Status;
+//        uint8_t data_len = 1;
+//
+//        volatile uint8_t ctrl = get_ctrl();
+//
+//        if (ctrl != 0b10000000)
+//        {
+//            init();
+//            return;
+//        }
+//
+//        if (_i2c_bus->write_buf(I2C_ADR, &status_reg_addr, data_len) == _i2c_bus->RESULT_SUCCESS)
+//        {
+//            _i2c_bus->read_buf(I2C_ADR, (uint8_t* )&_regList.status, sizeof(_regList));
+//
+////            _regList.status.underVoltage_lock = 0;
+//
+//            /* Если переполнение регистра счетчика заряда. */
+//            if (_regList.acc_charge == 0xFFFF)
+//            {
+//                /* rst_charge_cnt(); */
+//                /* Дли расширения диапазона измерений используется дооплнительный регистр. */
+//                uint16_t tpm = __REV16(_regList.charge_treshold_hi);
+//                tpm++;
+//
+//                ctrl_reg[0] = 0x02;
+//                ctrl_reg[1] = 0;
+//                ctrl_reg[2] = 0;
+//                *(uint16_t* )&ctrl_reg[3] = __REV16(tpm);
+//
+//                data_len = 5;
+//
+//                if (_i2c_bus->write_buf(I2C_ADR, (uint8_t* )&ctrl_reg[0], data_len) == _i2c_bus->RESULT_SUCCESS)
+//                {
+//                    ;
+//                }
+//            }
+//        }
+//
+//        if (_regList.charge_treshold_hi == 0xFFFF)
+//        {
+//            write_charge_cnt(0.0f);
+//        }
+//    }
     void read_registers()
     {
         const uint8_t status_reg_addr = reg_map::Status;
-        uint8_t data_len = 1;
 
         volatile uint8_t ctrl = get_ctrl();
+        (void)ctrl;
 
         if (ctrl != 0b11000000)
         {
             init();
+            return;
         }
 
-        if (_i2c_bus->write_buf(I2C_ADR, &status_reg_addr, data_len) == _i2c_bus->RESULT_SUCCESS)
+        if (_i2c_bus->write_read(
+                I2C_ADR,
+                &status_reg_addr, 1,
+                reinterpret_cast<uint8_t*>(&_regList),
+                sizeof(_regList)
+            ) != _i2c_bus->RESULT_SUCCESS)
         {
-            _i2c_bus->read_buf(I2C_ADR, (uint8_t* )&_regList.status, sizeof(_regList));
-
-            _regList.status.underVoltage_lock = 0;
-
-            /* Если переполнение регистра счетчика заряда. */
-            if (_regList.acc_charge == 0xFFFF)
-            {
-                /* rst_charge_cnt(); */
-                /* Дли расширения диапазона измерений используется дооплнительный регистр. */
-                uint16_t tpm = __REV16(_regList.charge_treshold_hi);
-                tpm++;
-
-                ctrl_reg[0] = 0x02;
-                ctrl_reg[1] = 0;
-                ctrl_reg[2] = 0;
-                *(uint16_t* )&ctrl_reg[3] = __REV16(tpm);
-
-                data_len = 5;
-
-                if (_i2c_bus->write_buf(I2C_ADR, (uint8_t* )&ctrl_reg[0], data_len) == _i2c_bus->RESULT_SUCCESS)
-                {
-                    ;
-                }
-            }
+            // при необходимости: обработка ошибки
         }
 
-        if (_regList.charge_treshold_hi == 0xFFFF)
-        {
-            write_charge_cnt(0.0f);
-        }
     }
 
     void write_charge_cnt(float val)
@@ -189,13 +218,13 @@ public:
     uint8_t get_ctrl()
     {
         const uint8_t ctrl_reg_addr = reg_map::Control;
-        const uint8_t data_len = 1;
         uint8_t ctrl_reg_val = 0;
 
-        if (_i2c_bus->write_buf(I2C_ADR, &ctrl_reg_addr, data_len) == _i2c_bus->RESULT_SUCCESS)
-        {
-            _i2c_bus->read_buf(I2C_ADR, &ctrl_reg_val, data_len);
-        }
+        _i2c_bus->write_read(
+            I2C_ADR,
+            &ctrl_reg_addr, 1,
+            &ctrl_reg_val, 1
+        );
 
         return ctrl_reg_val;
     }
