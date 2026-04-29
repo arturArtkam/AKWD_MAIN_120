@@ -111,22 +111,22 @@ public:
     {
         memset(&_regList, 0, sizeof(_regList));
 
-        _regList.ctrl.shdn = 0;
-        _regList.ctrl.alcc_conf = 0;
-        _regList.ctrl.prescaler = 0;
-        _regList.ctrl.adc_mode = 3;
+//        _regList.ctrl.shdn = 0;
+//        _regList.ctrl.alcc_conf = 0;
+//        _regList.ctrl.prescaler = 0;
+//        _regList.ctrl.adc_mode = 3;
+//
+//        ctrl_reg[0] = 0x01;
+//        ctrl_reg[1] = *(reinterpret_cast<uint8_t* >(&_regList.ctrl));
+//
+//        read_registers();
+//
+//        if (_regList.charge_treshold_hi == 0xFFFF)
+//        {
+//            write_charge_cnt(0.0f);
+//        }
 
-        ctrl_reg[0] = 0x01;
-        ctrl_reg[1] = *(reinterpret_cast<uint8_t* >(&_regList.ctrl));
-
-        read_registers();
-
-        if (_regList.charge_treshold_hi == 0xFFFF)
-        {
-            write_charge_cnt(0.0f);
-        }
-
-//        init();
+        init();
 
 
 //        _i2c_bus->write_buf(I2C_ADR, ctrl_reg, 2);
@@ -182,21 +182,28 @@ public:
     {
         const uint8_t status_reg_addr = reg_map::Status;
 
-        volatile uint8_t ctrl = get_ctrl();
-        (void)ctrl;
-
-        if (ctrl != 0b11000000)
-        {
-            init();
-            return;
-        }
+//        volatile uint8_t ctrl = get_ctrl();
+//
+//        if (ctrl != 0b11000000)
+//        {
+//            init();
+//            return;
+//        }
 
         if (_i2c_bus->write_read(
                 I2C_ADR,
                 &status_reg_addr, 1,
                 reinterpret_cast<uint8_t*>(&_regList),
                 sizeof(_regList)
-            ) != _i2c_bus->RESULT_SUCCESS)
+            ) == _i2c_bus->RESULT_SUCCESS)
+        {
+            if (_regList.ctrl.adc_mode != 3)
+            {
+                init();
+                return;
+            }
+        }
+        else
         {
             // при необходимости: обработка ошибки
         }
