@@ -578,7 +578,7 @@ OS_PROCESS void Proc2::exec()
 
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
-//            sensors.read_sensors();
+            sensors.read_sensors();
 
             OS::sleep(10);
 
@@ -650,7 +650,6 @@ OS_PROCESS void Proc5::exec()
 
     for (;;)
     {
-        akwd::sensors.read_sensors();
         akwd::nv_vars.save_variables();
         sleep(5000u);
     }

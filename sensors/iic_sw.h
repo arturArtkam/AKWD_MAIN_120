@@ -17,7 +17,7 @@ private:
 
     static inline void delay()
     {
-        for (volatile int i = 0; i < 50; ++i)
+        for (volatile int i = 0; i < 10; ++i)
             __NOP();
     }
 
