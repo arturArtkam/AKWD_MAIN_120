@@ -78,7 +78,7 @@ public:
 //            Synchro_exti::disable_irq();
 
             Line_exti::init();
-            Line_exti::enable_irq();
+//            Line_exti::enable_irq();
         }
 
         _active_input = src;
@@ -115,19 +115,19 @@ public:
 //        if (READ_BIT(EXTI->PR, EXTI_Line0))
 //        {
 //            EXTI->PR = EXTI_Line0;
-            Synchro_exti::clear_pending();
-            Line_exti::clear_pending();
-            _sync_period = (Dwt::cycles() - _start_time);
-            _start_time = Dwt::cycles();
+        Synchro_exti::clear_pending();
+        Line_exti::clear_pending();
+        _sync_period = (Dwt::cycles() - _start_time);
+        _start_time = Dwt::cycles();
 
-            if (_enabled)
-            {
-                Dwt::delay_us(600);
+        if (_enabled)
+        {
+            Dwt::delay_us(600);
 
-                _ctimer_lnk.inc();
-                _uart_ptr.send_via_dma(query, sizeof(query), true);
-                _sync_event.signal_from_isr(Sync_event_src::SYNC_EVENT);
-            }
+            _ctimer_lnk.inc();
+            _uart_ptr.send_via_dma(query, sizeof(query), true);
+            _sync_event.signal_from_isr(Sync_event_src::SYNC_EVENT);
+        }
 //        }
     }
 };

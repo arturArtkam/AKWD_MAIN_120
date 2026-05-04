@@ -116,7 +116,10 @@ public:
     {
 //        uint8_t query_semen[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
 //        *(uint16_t* )&query_semen[1] = crc16_split(&query_semen[0], sizeof(uint8_t), 0xffff);
-        uint8_t query_semen[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA)};
+        uint8_t query_semen[] = {uint8_t((_addr << 4) | Exchange_between_boards::CMD_GET_DATA), 0x00, 0x00};
+        uint16_t crc = crc16_split(&query_semen[0], 1, 0xffff);
+        query_semen[1] = crc & 0xFF;
+        query_semen[2] = crc >> 8;
 
 //        while (mutex.is_locked());
         mutex.lock();

@@ -11,7 +11,7 @@ sAssertInfo g_assert_info;
 
 static sens_array_t s_short;
 static sens_array_t s_long;
-static sync_rx_t sync_rx_data;
+static volatile sync_rx_t sync_rx_data;
 static uint8_t s_tx_data[128];
 static OS::TMutex s_mutex;
 
@@ -90,10 +90,10 @@ public:
 //        static_assert(std::is_trivial<_I2c>::value == true, "wrong!");
     }
 
-    void read_sensors()
-    {
-        ltc2944_bat.read_registers();
-    }
+//    void read_sensors()
+//    {
+//        ltc2944_bat.read_registers();
+//    }
 
     void map_and_adjust_board(sens_array_t& dst, const sens_array_t& src, const Ee_gain& eep_gains)
     {
@@ -121,7 +121,7 @@ public:
     void fill_datastruct(DataStructW_t* data_)
     {
         // -- Сбор данных (вне мьютекса, чтобы не держать его долго) --
-//        ltc2944_bat.read_registers();
+        ltc2944_bat.read_registers();
         Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
         Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
 
@@ -132,31 +132,36 @@ public:
         uint32_t sync_p = _ext_trigger.get_sync_periode();
 
         // -- Критическая секция (только копирование) --
-        s_mutex.lock();
+//        s_mutex.lock();
+        if (s_mutex.try_lock())
+        {
 
-        data_->SYNC_RECIEVER = sync_rx_data;
+    //        data_->SYNC_RECIEVER = sync_rx_data;
+            memcpy(&data_->SYNC_RECIEVER, (const void* )&sync_rx_data, sizeof(data_->SYNC_RECIEVER));
 
-        data_->AKWD_RX.T = temp;
-        data_->AKWD_RX.AmpH = amp_h;
-        data_->AKWD_RX.vcc = vcc;
-        data_->AKWD_RX.pwr = amp_h * vcc;
-//        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
-//        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
-//        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
-//        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
-        data_->AKWD_RX.vcc_pos_5v = 5; //Vcc::read_pos_5v();
-        data_->AKWD_RX.vcc_neg_5v = -5; //Vcc::read_neg_5v();
-        data_->AKWD_RX.sync_pulses = sync_p;
+            data_->AKWD_RX.T = temp;
+            data_->AKWD_RX.AmpH = amp_h;
+            data_->AKWD_RX.vcc = vcc;
+            data_->AKWD_RX.pwr = amp_h * vcc;
+    //        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
+    //        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
+    //        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
+    //        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
+            data_->AKWD_RX.vcc_pos_5v = 5; //Vcc::read_pos_5v();
+            data_->AKWD_RX.vcc_neg_5v = -5; //Vcc::read_neg_5v();
+            data_->AKWD_RX.sync_pulses = sync_p;
 
-        data_->AKWD_RX.accel.X = xyz_data.a_x;
-        data_->AKWD_RX.accel.Y = xyz_data.a_y;
-        data_->AKWD_RX.accel.Z = xyz_data.a_z;
+            data_->AKWD_RX.accel.X = xyz_data.a_x;
+            data_->AKWD_RX.accel.Y = xyz_data.a_y;
+            data_->AKWD_RX.accel.Z = xyz_data.a_z;
 
-        // -- Обработка плат через вспомогательный метод (устраняем дублирование) --
-        map_and_adjust_board(data_->AKWD_RX.SENS_SHORT, s_short, _short_sens);
-        map_and_adjust_board(data_->AKWD_RX.SENS_LONG, s_long, _long_sens);
+            // -- Обработка плат через вспомогательный метод (устраняем дублирование) --
+            map_and_adjust_board(data_->AKWD_RX.SENS_SHORT, s_short, _short_sens);
+            map_and_adjust_board(data_->AKWD_RX.SENS_LONG, s_long, _long_sens);
 
-        s_mutex.unlock();
+            s_mutex.unlock();
+        }
+
     }
 
 //    void fill_datastruct(DataStructW_t* data_)
@@ -565,7 +570,7 @@ OS_PROCESS void Proc2::exec()
         s_tx_data[crc_pos]     = 0xFF; // Заглушка
         s_tx_data[crc_pos + 1] = 0x5A; // Заглушка
 
-        // 4. Отправка коэффициентов на плату 2
+        // -- Отправка коэффициентов на плату --
         if (!adc_board_2.send_data(s_tx_data, sizeof(head) + sizeof(s_short.gain) + 2, s_mutex)) {
             akwd::error_chan.push(4);
         }
@@ -578,12 +583,9 @@ OS_PROCESS void Proc2::exec()
 
         if (timer_or_ext_sync.check_source(Sync_event_src::SYNC_EVENT))
         {
-            sensors.read_sensors();
-
             OS::sleep(10);
-
             // Чтение данных синхронизатора
-            if (!sync_reciever.read_data(&sync_rx_data, sizeof(sync_rx_t), s_mutex)) {
+            if (!sync_reciever.read_data((void* )&sync_rx_data, sizeof(sync_rx_t), s_mutex)) {
                 akwd::error_chan.push(2);
             }
 
