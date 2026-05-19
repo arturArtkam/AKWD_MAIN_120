@@ -95,6 +95,48 @@ public:
 //        ltc2944_bat.read_registers();
 //    }
 
+    /**
+     * Ресемплинг данных АК "на месте" (in-place)
+     * @param channels Массив указателей на 8 каналов
+     * @param n_in     Количество отсчетов в каждом канале
+     * @param fs_old   Исходная частота (127000.0f)
+     * @param fs_new   Целевая частота  (125000.0f)
+     */
+    void resample_inplace(int16_t* channels[], int n_in, float fs_old, float fs_new) {
+        if (fs_new > fs_old) return; // In-place работает только при понижении частоты
+
+        int n_out = (int)((float)n_in * fs_new / fs_old);
+        float ratio = fs_old / fs_new;
+
+        for (int ch = 0; ch < 8; ch++) {
+            int16_t* data = channels[ch];
+
+            for (int j = 0; j < n_out; j++) {
+                float old_idx = (float)j * ratio;
+                int i_low = (int)old_idx;
+                int i_high = i_low + 1;
+
+                // Защита от выхода за границу исходного массива
+                if (i_high >= n_in) i_high = n_in - 1;
+
+                float weight = old_idx - (float)i_low;
+
+                // Линейная интерполяция для int16_t
+                // Используем float для промежуточного вычисления, чтобы сохранить точность
+                float sample = (float)data[i_low] + (float)(data[i_high] - data[i_low]) * weight;
+
+                // Записываем результат обратно в тот же массив
+                data[j] = (int16_t)sample;
+            }
+
+            // Заполняем оставшуюся часть массива нулями (аналог np.pad)
+            if (n_in > n_out) {
+                memset(&data[n_out], 0, (n_in - n_out) * sizeof(int16_t));
+            }
+        }
+    }
+
+
     void map_and_adjust_board(sens_array_t& dst, const sens_array_t& src, const Ee_gain& eep_gains)
     {
         // Карта соответствия: 0->3, 1->2, 2->4, 3->5, 4->6, 5->7, 6->1, 7->0
@@ -104,6 +146,12 @@ public:
         using fkd_ptr = int16_t (*)[FKD_LEN];
         const fkd_ptr src_fkd = (const fkd_ptr)(const_cast<fkd_t*>(&src.fkd));
         fkd_ptr dst_fkd = (fkd_ptr)&dst.fkd;
+
+        // Массив указателей для resample_inplace
+        int16_t* ch[8] = {
+            &dst.fkd.d0[0], &dst.fkd.d1[0], &dst.fkd.d2[0], &dst.fkd.d3[0],
+            &dst.fkd.d4[0], &dst.fkd.d5[0], &dst.fkd.d6[0], &dst.fkd.d7[0]
+        };
 
         // Аналогично для Gain
         const uint8_t* src_gain = (const uint8_t*)(const_cast<gain_t*>(&src.gain));
@@ -116,6 +164,8 @@ public:
             dst_gain[i] = src_gain[src_idx];
             adjust_gain_and_copy(dst_fkd[i], src_fkd[src_idx], eep_g[i]);
         }
+
+        resample_inplace(ch, FKD_LEN, 127000.0f, 125000.0f);
     }
 
     void fill_datastruct(DataStructW_t* data_)
