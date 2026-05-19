@@ -102,14 +102,21 @@ public:
      * @param fs_old   Исходная частота (127000.0f)
      * @param fs_new   Целевая частота  (125000.0f)
      */
-    void resample_inplace(int16_t* channels[], int n_in, float fs_old, float fs_new) {
+    void resample_inplace(sens_array_t& channels, int n_in, float fs_old, float fs_new) {
         if (fs_new > fs_old) return; // In-place работает только при понижении частоты
 
         int n_out = (int)((float)n_in * fs_new / fs_old);
         float ratio = fs_old / fs_new;
 
+        // Массив указателей для resample_inplace
+        int16_t* fkd_ch[8] = {
+            &channels.fkd.d0[0], &channels.fkd.d1[0], &channels.fkd.d2[0],
+            &channels.fkd.d3[0], &channels.fkd.d4[0], &channels.fkd.d5[0],
+            &channels.fkd.d6[0], &channels.fkd.d7[0]
+        };
+
         for (int ch = 0; ch < 8; ch++) {
-            int16_t* data = channels[ch];
+            int16_t* data = fkd_ch[ch];
 
             for (int j = 0; j < n_out; j++) {
                 float old_idx = (float)j * ratio;
@@ -147,12 +154,6 @@ public:
         const fkd_ptr src_fkd = (const fkd_ptr)(const_cast<fkd_t*>(&src.fkd));
         fkd_ptr dst_fkd = (fkd_ptr)&dst.fkd;
 
-        // Массив указателей для resample_inplace
-        int16_t* ch[8] = {
-            &dst.fkd.d0[0], &dst.fkd.d1[0], &dst.fkd.d2[0], &dst.fkd.d3[0],
-            &dst.fkd.d4[0], &dst.fkd.d5[0], &dst.fkd.d6[0], &dst.fkd.d7[0]
-        };
-
         // Аналогично для Gain
         const uint8_t* src_gain = (const uint8_t*)(const_cast<gain_t*>(&src.gain));
         uint8_t* dst_gain = (uint8_t*)&dst.gain;
@@ -164,8 +165,6 @@ public:
             dst_gain[i] = src_gain[src_idx];
             adjust_gain_and_copy(dst_fkd[i], src_fkd[src_idx], eep_g[i]);
         }
-
-        resample_inplace(ch, FKD_LEN, 127000.0f, 125000.0f);
     }
 
     void fill_datastruct(DataStructW_t* data_)
@@ -208,6 +207,10 @@ public:
             // -- Обработка плат через вспомогательный метод (устраняем дублирование) --
             map_and_adjust_board(data_->AKWD_RX.SENS_SHORT, s_short, _short_sens);
             map_and_adjust_board(data_->AKWD_RX.SENS_LONG, s_long, _long_sens);
+
+
+            resample_inplace(data_->AKWD_RX.SENS_SHORT, FKD_LEN, 127000.0f, 125000.0f);
+            resample_inplace(data_->AKWD_RX.SENS_LONG, FKD_LEN, 127000.0f, 125000.0f);
 
             s_mutex.unlock();
         }
