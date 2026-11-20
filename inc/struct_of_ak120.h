@@ -216,7 +216,7 @@ typedef struct
 //char (*__kaboom)[sizeof(DataStructR_t) - (sizeof(DataStructR_t) - offsetof(DataStructR_t, AKWD_RX.SENS_SHORT.gain))] = 1;
 //char (*__kaboom)[sizeof(DataStructR_t::AKWD_RX.SENS_LONG)] = 1;
 //char (*__kaboom_1)[offsetof(DataStructR_t, AKWD_RX.SENS_LONG.fkd)] = 1;
-//char (*__kaboom_2)[sizeof(DataStructR_t)] = 1;
+//char (*__kaboom_2)[sizeof(DataStructR_t) / 1024  * size_t(3600 / 2.096) * 24] = 1;
 
 #pragma pack(push, 1)
 typedef struct

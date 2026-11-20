@@ -97,28 +97,30 @@ public:
 
     /**
      * Ресемплинг данных АК "на месте" (in-place)
-     * @param channels Массив указателей на 8 каналов
+     * @param channels Ссылка на поле структуры данных
      * @param n_in     Количество отсчетов в каждом канале
      * @param fs_old   Исходная частота (127000.0f)
      * @param fs_new   Целевая частота  (125000.0f)
      */
-    void resample_inplace(sens_array_t& channels, int n_in, float fs_old, float fs_new) {
+    void resample_inplace(sens_array_t& channels, int n_in, float fs_old, float fs_new)
+    {
         if (fs_new > fs_old) return; // In-place работает только при понижении частоты
 
         int n_out = (int)((float)n_in * fs_new / fs_old);
         float ratio = fs_old / fs_new;
 
         // Массив указателей для resample_inplace
-        int16_t* fkd_ch[8] = {
-            &channels.fkd.d0[0], &channels.fkd.d1[0], &channels.fkd.d2[0],
-            &channels.fkd.d3[0], &channels.fkd.d4[0], &channels.fkd.d5[0],
-            &channels.fkd.d6[0], &channels.fkd.d7[0]
+        int16_t* fkd_ch[8] = {&channels.fkd.d0[0], &channels.fkd.d1[0],
+            &channels.fkd.d2[0], &channels.fkd.d3[0], &channels.fkd.d4[0],
+            &channels.fkd.d5[0], &channels.fkd.d6[0], &channels.fkd.d7[0]
         };
 
-        for (int ch = 0; ch < 8; ch++) {
+        for (int ch = 0; ch < 8; ch++)
+        {
             int16_t* data = fkd_ch[ch];
 
-            for (int j = 0; j < n_out; j++) {
+            for (int j = 0; j < n_out; j++)
+            {
                 float old_idx = (float)j * ratio;
                 int i_low = (int)old_idx;
                 int i_high = i_low + 1;
@@ -137,7 +139,8 @@ public:
             }
 
             // Заполняем оставшуюся часть массива нулями (аналог np.pad)
-            if (n_in > n_out) {
+            if (n_in > n_out)
+            {
                 memset(&data[n_out], 0, (n_in - n_out) * sizeof(int16_t));
             }
         }
@@ -216,112 +219,6 @@ public:
         }
 
     }
-
-//    void fill_datastruct(DataStructW_t* data_)
-//    {
-//        ltc2944_bat.read_registers();
-//
-//        Fram_vault::Fram::read_buf(&_short_sens, offsetof(EepData_t, EepData_t::gain_short), sizeof(Ee_gain));
-//        Fram_vault::Fram::read_buf(&_long_sens, offsetof(EepData_t, EepData_t::gain_long), sizeof(Ee_gain));
-//
-//        data_->AKWD_RX.T = ltc2944_bat.get_temperature();
-//        data_->AKWD_RX.AmpH = lrintf(1000.0f * ltc2944_bat.get_current().val); /* lrintf округленное до ближайшего целого */
-//        data_->AKWD_RX.vcc = ltc2944_bat.get_voltage().val;
-//        data_->AKWD_RX.pwr = data_->AKWD_RX.AmpH * data_->AKWD_RX.vcc;
-//        data_->AKWD_RX.vcc_pos_5v = Vcc::read_pos_5v();
-//        data_->AKWD_RX.vcc_neg_5v = Vcc::read_neg_5v();
-//        data_->AKWD_RX.sync_pulses = _ext_trigger.get_sync_periode();
-//
-//        auto xyz_data = axel_3d.read_data();
-//
-//        data_->AKWD_RX.accel.X = xyz_data.a_x;
-//        data_->AKWD_RX.accel.Y = xyz_data.a_y;
-//        data_->AKWD_RX.accel.Z = xyz_data.a_z;
-//
-////        akwd::leds.green_on();
-////        while (s_mutex.is_locked());
-//        s_mutex.lock();
-//
-//        data_->SYNC_RECIEVER = sync_rx_data;
-//
-//        // -- Старая версия распайки датчиков --
-//
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_0; // (8) -> {1} -> 1 (датчик) -> {канал АЦП} -> канал ФКД
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_1; // (7) -> {2} -> 2
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_6; // (5) -> {7} -> 3
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_7; // (6) -> {8} -> 4
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_4; // (3) -> {5} -> 5
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_5; // (4) -> {6} -> 6
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_2; // (2) -> {3} -> 7
-////        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_3; // (1) -> {4} -> 8
-////
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d0, _short_sens.gain_0);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d1, _short_sens.gain_1);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d6, _short_sens.gain_2);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d7, _short_sens.gain_3);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d4, _short_sens.gain_4);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d5, _short_sens.gain_5);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d2, _short_sens.gain_6);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d3, _short_sens.gain_7);
-////
-////        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_0;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_1;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_6;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_7;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_4;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_5;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_2;
-////        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_3;
-////
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d0, _long_sens.gain_0);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d1, _long_sens.gain_1);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d6, _long_sens.gain_2);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d7, _long_sens.gain_3);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d4, _long_sens.gain_4);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d5, _long_sens.gain_5);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d2, _long_sens.gain_6);
-////        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d3, _long_sens.gain_7);
-//
-//        // -- Новая версия распайки датчиков 03.2026 --
-//
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_0 = s_short.gain.gain_3;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_1 = s_short.gain.gain_2;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_2 = s_short.gain.gain_4;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_3 = s_short.gain.gain_5;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_4 = s_short.gain.gain_6;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_5 = s_short.gain.gain_7;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_6 = s_short.gain.gain_1;
-//        data_->AKWD_RX.SENS_SHORT.gain.gain_7 = s_short.gain.gain_0;
-//
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d0, s_short.fkd.d3, _short_sens.gain_0);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d1, s_short.fkd.d2, _short_sens.gain_1);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d2, s_short.fkd.d4, _short_sens.gain_2);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d3, s_short.fkd.d5, _short_sens.gain_3);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d4, s_short.fkd.d6, _short_sens.gain_4);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d5, s_short.fkd.d7, _short_sens.gain_5);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d6, s_short.fkd.d1, _short_sens.gain_6);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_SHORT.fkd.d7, s_short.fkd.d0, _short_sens.gain_7);
-//
-//        data_->AKWD_RX.SENS_LONG.gain.gain_0 = s_long.gain.gain_3;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_1 = s_long.gain.gain_2;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_2 = s_long.gain.gain_4;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_3 = s_long.gain.gain_5;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_4 = s_long.gain.gain_6;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_5 = s_long.gain.gain_7;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_6 = s_long.gain.gain_1;
-//        data_->AKWD_RX.SENS_LONG.gain.gain_7 = s_long.gain.gain_0;
-//
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d0, s_long.fkd.d3, _long_sens.gain_0);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d1, s_long.fkd.d2, _long_sens.gain_1);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d2, s_long.fkd.d4, _long_sens.gain_2);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d3, s_long.fkd.d5, _long_sens.gain_3);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d4, s_long.fkd.d6, _long_sens.gain_4);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d5, s_long.fkd.d7, _long_sens.gain_5);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d6, s_long.fkd.d1, _long_sens.gain_6);
-//        adjust_gain_and_copy(data_->AKWD_RX.SENS_LONG.fkd.d7, s_long.fkd.d0, _long_sens.gain_7);
-//
-//        s_mutex.unlock();
-//    }
 
     void adjust_gain_and_copy(int16_t (&buf_dst)[FKD_LEN], int16_t (&buf_src)[FKD_LEN], float ch_gain)
     {
@@ -416,8 +313,15 @@ void check_stack_freespaces()
 #endif
 }
 
+// Вычисление размера данных за сутки и вывод в build лог
+template <size_t N>
+__attribute__((deprecated("Daily data size (MB)")))
+constexpr int print_daily_size() { return 0; }
 
-
+__attribute__((unused))
+constexpr int _info_daily_mb = print_daily_size<
+    size_t(sizeof(DataStructR_t) * (24.0 * 3600.0 / 2.096) / (1024.0 * 1024.0) + 0.5)
+>();
 
 int main()
 {

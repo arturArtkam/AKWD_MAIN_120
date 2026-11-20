@@ -48,8 +48,8 @@
 					<Add option="-ffunction-sections" />
 					<Add option="-Os" />
 					<Add option="-g3" />
-					<Add symbol='&quot;VECT_TAB_OFFSET = 0&quot;' />
-					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC = 1&quot;' />
+					<Add symbol='&quot;VECT_TAB_OFFSET=0&quot;' />
+					<Add symbol='&quot;AKWD_USE_EXTERNAL_SYNC=1&quot;' />
 				</Compiler>
 				<Cpp>
 					<Add option="-fdata-sections" />
@@ -120,9 +120,9 @@
 			<Add symbol="STM32F401VC" />
 			<Add symbol="STM32F4XX" />
 			<Add symbol="USE_STDPERIPH_DRIVER" />
-			<Add symbol='&quot;F_CPU = 24000000ul&quot;' />
-			<Add symbol='&quot;F_APB1 = 24000000ul&quot;' />
-			<Add symbol='&quot;F_SDIO = 24000000ul&quot;' />
+			<Add symbol='&quot;F_CPU=24000000ul&quot;' />
+			<Add symbol='&quot;F_APB1=24000000ul&quot;' />
+			<Add symbol='&quot;F_SDIO=24000000ul&quot;' />
 			<Add directory=".\inc" />
 			<Add directory=".\src" />
 			<Add directory=".\cmsis" />
@@ -134,7 +134,6 @@
 			<Add option="-fno-exceptions" />
 			<Add option="-fno-rtti" />
 			<Add option="-std=gnu++14" />
-			<Add option="-Wunreachable-code" />
 			<Add option="-Wsign-compare" />
 			<Add option="-Wshadow" />
 			<Add option="-Wredundant-decls" />
@@ -157,9 +156,6 @@
 			<Add option="-fno-strict-aliasing" />
 			<Add option="-fno-threadsafe-statics" />
 			<Add option="-Wlogical-op" />
-			<Add option="-fno-sanitize-recover" />
-			<Add option="-D_GLIBCXX_DEBUG" />
-			<Add option="-D_GLIBCXX_DEBUG_PEDANTIC" />
 		</Cpp>
 		<Linker>
 			<Add option="-eb_lib=n" />
